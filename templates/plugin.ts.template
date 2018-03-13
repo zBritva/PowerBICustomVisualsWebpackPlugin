@@ -10,8 +10,17 @@
                 class: '<%= visualClass %>',
                 version: '<%= visualVersion %>',
                 apiVersion: '<%= apiVersion %>',
-                create: function (options) { 
-                    return new CustomVisual.default(options);
+                create: function (options) {
+                    if (CustomVisual.default.extensibility &&
+                        CustomVisual.default.extensibility.visual &&
+                        CustomVisual.default.extensibility.visual.<%= visualClass %>) {
+                        // for support visuals inside 
+                        return new CustomVisual.default.extensibility.visual.<%= visualClass %>(options);
+                    } else if (CustomVisual.default) {
+                        return new CustomVisual.default(options);
+                    } else {
+                        console.error('Visual instance not found');
+                    }
                 },
                 custom: true
             };

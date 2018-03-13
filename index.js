@@ -33,7 +33,11 @@ PowerBICustomVisualsWebpackPlugin.prototype.apply = function(compiler) {
   const encoding = "utf8";
   const pluginFileName = "visualPlugin.js";
 
-  compiler.plugin("emit", (compilation, callback) => {
+    compiler.plugin("compile", (compilation, callback) => {
+        console.log();
+    });
+
+    compiler.plugin("emit", (compilation, callback) => {
     // generate pbiviz.json for dev server
     var stringResources = "";
     if (this.options.stringResourcesPath && this.options.stringResourcesPath.length) {
