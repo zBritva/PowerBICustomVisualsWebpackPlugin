@@ -45,10 +45,7 @@ PowerBICustomVisualsWebpackPlugin.prototype.apply = function(compiler) {
         stringResources += fs.existsSync(resource) ? fs.readFileSync(resource, encoding): "";
       });
     }
-    var capabilities = "";
-    if (this.options.capabilities) {
-      capabilities = fs.existsSync(this.options.capabilities) ? fs.readFileSync(this.options.capabilities, encoding) : "";
-    }
+    var capabilities = this.options.capabilities;
 
     let jsContent = "";
     let jsPath = "";
