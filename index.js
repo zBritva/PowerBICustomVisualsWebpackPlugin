@@ -3,6 +3,10 @@ const path = require('path');
 const fs = require('fs');
 const _ = require('lodash');
 
+const base64Img = require('base64-img');
+const JSZip = require('jszip');
+var UglifyJS = require("uglify-js");
+
 function PowerBICustomVisualsWebpackPlugin(options) {
   const name = "SampleVisual";
   var defaultOptions = {
@@ -13,16 +17,17 @@ function PowerBICustomVisualsWebpackPlugin(options) {
         visualClassName: "Visual",
         version: "1.0.0.0",
         description: "",
-        supportUrl: "",
-        author: ""
+        supportUrl: ""
     },
+    author: "",
     apiVersion: "1.10.0",
     stringResourcesPath: [
       ""
     ],
     capabilities: {},
-    iconImage: "",
-    devMode: true
+    iconImage: base64Img.base64Sync(path.join(__dirname, "templates", "icon.png")),
+    devMode: true,
+    packageOutPath: path.join(__dirname, "distr")
   };
 
   this.options = Object.assign(defaultOptions, options);
@@ -45,20 +50,25 @@ PowerBICustomVisualsWebpackPlugin.prototype.apply = function(compiler) {
         stringResources += fs.existsSync(resource) ? fs.readFileSync(resource, encoding): "";
       });
     }
+
+    if (stringResources === "") {
+      stringResources = this.options.stringResources;
+    }
+
     var capabilities = this.options.capabilities;
 
     let jsContent = "";
+    let jsContentOrigin = "";
     let jsPath = "";
 
     let cssContent = "";
     let cssPath = "visual.css";
-    const iconImage = "";
     
     let visualFileName = "";
     for(let asset in compilation.assets) {
       if (asset.split('.').pop() === "js") {
         jsPath = asset;
-        jsContent = compilation.assets[asset].source();
+        jsContentOrigin = compilation.assets[asset].source();
       }
       if (asset.split('.').pop() === "css") {
         cssPath = asset;
@@ -101,6 +111,7 @@ PowerBICustomVisualsWebpackPlugin.prototype.apply = function(compiler) {
     };
 
     // append plugin code to visual code;
+    jsContent = jsContentOrigin;
     jsContent += `\n ${pluginTs}`;
 
     compilation.assets[jsPath] = {
@@ -112,7 +123,7 @@ PowerBICustomVisualsWebpackPlugin.prototype.apply = function(compiler) {
       }
     };
 
-    var jsonData = {
+    var visualConfig = {
       visual: {
           name: this.options.visual.name,
           displayName: this.options.visual.displayName,
@@ -121,9 +132,9 @@ PowerBICustomVisualsWebpackPlugin.prototype.apply = function(compiler) {
           version: this.options.visual.version,
           description: this.options.visual.description,
           supportUrl: this.options.visual.supportUrl,
-          apiVersion: this.options.apiVersion,
-          author: this.options.visual.author
+          apiVersion: this.options.apiVersion
       },
+      author: this.options.author,
       apiVersion: this.options.apiVersion,
       style: "style/visual.less",
       stringResources: stringResources,
@@ -131,18 +142,18 @@ PowerBICustomVisualsWebpackPlugin.prototype.apply = function(compiler) {
       content: {
           js: jsContent,
           css: cssContent,
-          iconBase64: iconImage
+          iconBase64: this.options.iconImage
       }
     };
 
-    var jsonDataString = JSON.stringify(jsonData);
+    var pbivizJSONData = JSON.stringify(visualConfig);
 
     compilation.assets["pbiviz.json"] = {
       source: function() {
-        return jsonDataString;
+        return pbivizJSONData;
       },
       size: function() {
-        return jsonDataString.length;
+        return pbivizJSONData.length;
       }
     };
 
@@ -157,8 +168,81 @@ PowerBICustomVisualsWebpackPlugin.prototype.apply = function(compiler) {
       }
     };
 
+    if (!this.options.devMode || true) {
+      let dropPath = this.options.packageOutPath
+      if(!fs.existsSync(dropPath)) {
+        fs.mkdir(dropPath);
+      }
+      let resourcePath = path.join(dropPath, 'resources');
+      if(!fs.existsSync(resourcePath)) {
+        fs.mkdir(resourcePath);
+      }
+
+      let visualConfigProd = _.cloneDeep(visualConfig);
+      visualConfigProd.visual.guid = `${this.options.visual.guid}`;
+      visualConfigProd.visual.gitHubUrl = visualConfigProd.visual.gitHubUrl || "";
+      
+      let templateOptions = {
+          visualData: visualConfigProd.visual || {},
+          authorData: visualConfigProd.author || {
+            name: "",
+            email: ""
+          },
+          guid: visualConfigProd.visual.guid
+      };
+      let packageTemplate = fs.readFileSync(path.join(__dirname, "templates", "package.json.template"));
+      delete templateOptions.visualData.apiVersion;
+      let packageJSONContent = _.template(packageTemplate)(templateOptions);
+      let pbivizJsonContent = fs.writeFileSync(path.join(dropPath, 'package.json'), packageJSONContent);
+
+      let jsContentProd = "debugger;console.log('DEBUGGER;')";
+      let pluginOptionsProd = _.cloneDeep(pluginOptions);
+      pluginOptionsProd.pluginName = `${this.options.visual.guid}`;
+
+      let pluginTsProd = _.template(pluginTemplate)(pluginOptionsProd);
+
+      jsContentProd = jsContentOrigin;
+      jsContentProd += `\n ${pluginTsProd}`;
+      jsContentProd = UglifyJS.minify(jsContentProd).code;
+      //we deliberately overwrite the dependencies property to make sure it will be undefined when no dependencies file was supplied
+      // distPbiviz.dependencies = dependencies;
+
+      //we deliberately overwrite the stringResources property to make sure it will be undefined when no stringResources file was supplied
+      // distPbiviz.stringResources = localization;
+      visualConfigProd.content = {
+        js: jsContentProd,
+        css: cssContent,
+        iconBase64: this.options.iconImage
+      }
+      visualConfigProd.externalJS = [];
+      visualConfigProd.assets =  {
+        "icon": "assets/icon.png"
+      };
+
+      fs.writeFileSync(path.join(resourcePath, `${this.options.visual.guid}.pbiviz.json`), JSON.stringify(visualConfigProd));
+      fs.writeFileSync(path.join(resourcePath, 'visual.prod.js'), jsContentProd);
+      fs.writeFileSync(path.join(resourcePath, 'visual.prod.css'), cssContent);
+
+      let zip = new JSZip();
+      zip.file('package.json', packageJSONContent);
+      let resources = zip.folder("resources");
+      resources.file(`${this.options.visual.guid}.pbiviz.json`, JSON.stringify(visualConfigProd));
+      zip.generateAsync({ type: 'nodebuffer' })
+          .then(content => 
+            fs.writeFileSync(
+              path.join(
+                dropPath,
+                `${this.options.visual.guid}.${this.options.visual.version}.pbiviz`),
+              content)
+          );
+    }
+
     callback();
   });
 };
+
+PowerBICustomVisualsWebpackPlugin.prototype.createPackage = function(visualConfig) {
+
+}
 
 module.exports = PowerBICustomVisualsWebpackPlugin;

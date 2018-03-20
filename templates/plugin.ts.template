@@ -11,7 +11,9 @@
                 version: '<%= visualVersion %>',
                 apiVersion: '<%= apiVersion %>',
                 create: function (options) {
-                    if (CustomVisual.default.extensibility &&
+                    if (CustomVisual &&
+                        CustomVisual.default &&
+                        CustomVisual.default.extensibility &&
                         CustomVisual.default.extensibility.visual &&
                         CustomVisual.default.extensibility.visual.<%= visualClass %>) {
                         // for support visuals inside 
