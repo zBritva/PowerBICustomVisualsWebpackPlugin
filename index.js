@@ -27,7 +27,7 @@ function PowerBICustomVisualsWebpackPlugin(options) {
     capabilities: {},
     iconImage: base64Img.base64Sync(path.join(__dirname, "templates", "icon.png")),
     devMode: true,
-    packageOutPath: path.join(__dirname, "distr")
+    packageOutPath: path.join(process.cwd(), "distr")
   };
 
   this.options = Object.assign(defaultOptions, options);
@@ -38,7 +38,7 @@ PowerBICustomVisualsWebpackPlugin.prototype.apply = function(compiler) {
   const encoding = "utf8";
   const pluginFileName = "visualPlugin.js";
 
-    compiler.plugin("compile", (compilation, callback) => {
+    compiler.plugin("beforeCompile", (compilationParams) => {
         console.log();
     });
 
@@ -111,7 +111,16 @@ PowerBICustomVisualsWebpackPlugin.prototype.apply = function(compiler) {
     };
 
     // append plugin code to visual code;
-    jsContent = jsContentOrigin;
+    // if (this.options.externalJS) {
+    //   for (let file in this.options.externalJS) {
+    //     let fileContent = fs.readFileSync(this.options.externalJS[file], {
+    //       encoding: encoding
+    //     });
+    //     jsContent += `\n ${fileContent}`;
+    //   }
+    // }
+
+    jsContent += jsContentOrigin;
     jsContent += `\n ${pluginTs}`;
 
     compilation.assets[jsPath] = {
@@ -168,7 +177,7 @@ PowerBICustomVisualsWebpackPlugin.prototype.apply = function(compiler) {
       }
     };
 
-    if (!this.options.devMode || true) {
+    if (!this.options.devMode) {
       let dropPath = this.options.packageOutPath
       if(!fs.existsSync(dropPath)) {
         fs.mkdir(dropPath);
@@ -195,15 +204,32 @@ PowerBICustomVisualsWebpackPlugin.prototype.apply = function(compiler) {
       let packageJSONContent = _.template(packageTemplate)(templateOptions);
       let pbivizJsonContent = fs.writeFileSync(path.join(dropPath, 'package.json'), packageJSONContent);
 
-      let jsContentProd = "debugger;console.log('DEBUGGER;')";
+      let jsContentProd = "";
+
+      /// load external js
+      if (this.options.externalJS) {
+        for (let file in this.options.externalJS) {
+          let fileContent = fs.readFileSync(this.options.externalJS[file], {
+            encoding: encoding
+          });
+          jsContentProd += `\n ${fileContent}`;
+        }
+      }
+
       let pluginOptionsProd = _.cloneDeep(pluginOptions);
       pluginOptionsProd.pluginName = `${this.options.visual.guid}`;
 
       let pluginTsProd = _.template(pluginTemplate)(pluginOptionsProd);
 
-      jsContentProd = jsContentOrigin;
+      jsContentProd += jsContentOrigin;
       jsContentProd += `\n ${pluginTsProd}`;
-      jsContentProd = UglifyJS.minify(jsContentProd).code;
+      let uglifyed =  UglifyJS.minify(jsContentProd);
+      if (!uglifyed.error) {
+        jsContentProd = uglifyed.code;
+      }
+      else {
+        console.error(uglifyed.error.message);
+      }
       //we deliberately overwrite the dependencies property to make sure it will be undefined when no dependencies file was supplied
       // distPbiviz.dependencies = dependencies;
 
