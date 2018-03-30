@@ -18,11 +18,20 @@
                         CustomVisual.default.extensibility.visual.<%= visualClass %>) {
                         // for support visuals inside 
                         return new CustomVisual.default.extensibility.visual.<%= visualClass %>(options);
-                    } else if (CustomVisual.default) {
-                        return new CustomVisual.default(options);
-                    } else {
-                        console.error('Visual instance not found');
                     }
+                    if (CustomVisual &&
+                        CustomVisual.powerbi &&
+                        CustomVisual.powerbi.extensibility &&
+                        CustomVisual.powerbi.extensibility.visual &&
+                        CustomVisual.powerbi.extensibility.visual.<%= visualClass %>) {
+                        // for support visuals inside 
+                        return new CustomVisual.powerbi.extensibility.visual.<%= visualClass %>(options);
+                    }
+                    if (CustomVisual.default) {
+                        return new CustomVisual.default(options);
+                    }
+
+                    console.error('Visual instance not found');
                 },
                 custom: true
             };
