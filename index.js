@@ -61,6 +61,9 @@ PowerBICustomVisualsWebpackPlugin.prototype.apply = function(compiler) {
     let jsContentOrigin = "";
     let jsPath = "";
 
+    let externalJSOrigin = "";
+    let externalJSOriginPath = "";
+
     let cssContent = "";
     let cssPath = "visual.css";
     
@@ -110,16 +113,19 @@ PowerBICustomVisualsWebpackPlugin.prototype.apply = function(compiler) {
       }
     };
 
-    // append plugin code to visual code;
-    // if (this.options.externalJS) {
-    //   for (let file in this.options.externalJS) {
-    //     let fileContent = fs.readFileSync(this.options.externalJS[file], {
-    //       encoding: encoding
-    //     });
-    //     jsContent += `\n ${fileContent}`;
-    //   }
-    // }
+    // append externalJS files content to visual code;
+    if (this.options.externalJS) {
+      for (let file in this.options.externalJS) {
+        let fileContent = fs.readFileSync(this.options.externalJS[file], {
+          encoding: encoding
+        });
+        externalJSOrigin += `\n ${fileContent}`;
+      }
+    }
 
+    externalJSOrigin += "\nvar globalPowerbi = powerbi;\n";
+
+    jsContent += externalJSOrigin;
     jsContent += jsContentOrigin;
     jsContent += `\n ${pluginTs}`;
 
@@ -221,6 +227,8 @@ PowerBICustomVisualsWebpackPlugin.prototype.apply = function(compiler) {
 
       let pluginTsProd = _.template(pluginTemplate)(pluginOptionsProd);
 
+
+      jsContentProd += externalJSOrigin;
       jsContentProd += jsContentOrigin;
       jsContentProd += `\n ${pluginTsProd}`;
       let uglifyed =  UglifyJS.minify(jsContentProd);
