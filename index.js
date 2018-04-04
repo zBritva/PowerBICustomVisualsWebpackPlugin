@@ -6,6 +6,7 @@ const _ = require('lodash');
 const base64Img = require('base64-img');
 const JSZip = require('jszip');
 var UglifyJS = require("uglify-js");
+const DEBUG = "";
 
 function PowerBICustomVisualsWebpackPlugin(options) {
   const name = "SampleVisual";
@@ -25,9 +26,12 @@ function PowerBICustomVisualsWebpackPlugin(options) {
       ""
     ],
     capabilities: {},
-    iconImage: base64Img.base64Sync(path.join(__dirname, "templates", "icon.png")),
+    iconImage: !options.assets.icon ? 
+      base64Img.base64Sync(path.join(__dirname, "templates", "icon.png")) : 
+      base64Img.base64Sync(path.join(process.cwd(),options.assets.icon)),
     devMode: true,
-    packageOutPath: path.join(process.cwd(), "distr")
+    packageOutPath: path.join(process.cwd(), "distr"),
+    cssStyles: null
   };
 
   this.options = Object.assign(defaultOptions, options);
@@ -81,19 +85,24 @@ PowerBICustomVisualsWebpackPlugin.prototype.apply = function(compiler) {
 
     if (!cssContent) {
       // if css file wasn't specified, generate empty css file because PBI requres this file from dev server
-      compilation.assets["visual.css"] = {
-        source: function() {
-          return "";
-        },
-        size: function() {
-          return 0;
-        }
-      };
+      // compilation.assets["visual.css"] = {
+      //   source: function() {
+      //     return "";
+      //   },
+      //   size: function() {
+      //     return 0;
+      //   }
+      // };
+      // try to get styles from package
+      if (this.options.cssStyles) {
+        let style = fs.readFileSync(this.options.cssStyles, {encoding: encoding});
+        cssContent = style;
+      }
     }
 
     // generate visual plugin for dev server
     let pluginOptions = {
-      pluginName: `${this.options.visual.guid}${ options.devMode ? '_DEBUG' : ''}`,
+      pluginName: `${this.options.visual.guid}${ options.devMode ? DEBUG : ''}`,
       visualGuid: this.options.visual.guid,
       visualClass: this.options.visual.visualClassName,
       visualDisplayName: this.options.visual.displayName,
@@ -142,7 +151,7 @@ PowerBICustomVisualsWebpackPlugin.prototype.apply = function(compiler) {
       visual: {
           name: this.options.visual.name,
           displayName: this.options.visual.displayName,
-          guid: `${this.options.visual.guid}${ options.devMode ? '_DEBUG' : ''}`,
+          guid: `${this.options.visual.guid}${ options.devMode ? DEBUG : ''}`,
           visualClassName: this.options.visual.visualClassName,
           version: this.options.visual.version,
           description: this.options.visual.description,
@@ -173,7 +182,7 @@ PowerBICustomVisualsWebpackPlugin.prototype.apply = function(compiler) {
     };
 
     // update status file for debug server
-    const status = `${new Date().getTime()}\n${this.options.visual.guid}${ options.devMode ? '_DEBUG' : ''}`;
+    const status = `${new Date().getTime()}\n${this.options.visual.guid}${ options.devMode ? DEBUG : ''}`;
     compilation.assets["status"] = {
       source: function() {
         return status;
