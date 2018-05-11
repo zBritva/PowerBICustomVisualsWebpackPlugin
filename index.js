@@ -30,7 +30,7 @@ function PowerBICustomVisualsWebpackPlugin(options) {
       base64Img.base64Sync(path.join(__dirname, "templates", "icon.png")) : 
       base64Img.base64Sync(path.join(process.cwd(),options.assets.icon)),
     devMode: true,
-    packageOutPath: path.join(process.cwd(), "distr"),
+    packageOutPath: path.join(process.cwd(), "dist"),
     cssStyles: null
   };
 
