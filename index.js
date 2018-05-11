@@ -1,6 +1,6 @@
 'use strict';
 const path = require('path');
-const fs = require('fs');
+const fs = require('fs-extra');
 const _ = require('lodash');
 
 const base64Img = require('base64-img');
@@ -31,7 +31,9 @@ function PowerBICustomVisualsWebpackPlugin(options) {
       base64Img.base64Sync(path.join(process.cwd(),options.assets.icon)),
     devMode: true,
     packageOutPath: path.join(process.cwd(), "dist"),
-    cssStyles: null
+    cssStyles: null,
+    generateResources: true,
+    generatePbiviz: true
   };
 
   this.options = Object.assign(defaultOptions, options);
@@ -266,18 +268,23 @@ PowerBICustomVisualsWebpackPlugin.prototype.apply = function(compiler) {
       fs.writeFileSync(path.join(resourcePath, 'visual.prod.js'), jsContentProd);
       fs.writeFileSync(path.join(resourcePath, 'visual.prod.css'), cssContent);
 
-      let zip = new JSZip();
-      zip.file('package.json', packageJSONContent);
-      let resources = zip.folder("resources");
-      resources.file(`${this.options.visual.guid}.pbiviz.json`, JSON.stringify(visualConfigProd));
-      zip.generateAsync({ type: 'nodebuffer' })
-          .then(content => 
-            fs.writeFileSync(
-              path.join(
-                dropPath,
-                `${this.options.visual.guid}.${this.options.visual.version}.pbiviz`),
-              content)
-          );
+      if (this.options.generatePbiviz) {
+        let zip = new JSZip();
+        zip.file('package.json', packageJSONContent);
+        let resources = zip.folder("resources");
+        resources.file(`${this.options.visual.guid}.pbiviz.json`, JSON.stringify(visualConfigProd));
+        zip.generateAsync({ type: 'nodebuffer' })
+            .then(content => 
+              fs.writeFileSync(
+                path.join(
+                  dropPath,
+                  `${this.options.visual.guid}.${this.options.visual.version}.pbiviz`),
+                content)
+            );
+      }
+      if (!this.options.generateResources) {
+        fs.removeSync(resourcePath);
+      }
     }
 
     callback();
