@@ -5,7 +5,7 @@ const _ = require('lodash');
 
 const base64Img = require('base64-img');
 const JSZip = require('jszip');
-var UglifyJS = require("uglify-js");
+var UglifyJS = require("uglify-es");
 const DEBUG = "";
 
 function PowerBICustomVisualsWebpackPlugin(options) {
@@ -33,7 +33,8 @@ function PowerBICustomVisualsWebpackPlugin(options) {
     packageOutPath: path.join(process.cwd(), "dist"),
     cssStyles: null,
     generateResources: true,
-    generatePbiviz: true
+    generatePbiviz: true,
+    minifyJS: true    
   };
 
   this.options = Object.assign(defaultOptions, options);
@@ -234,12 +235,14 @@ PowerBICustomVisualsWebpackPlugin.prototype.apply = function(compiler) {
       jsContentProd += externalJSOrigin;
       jsContentProd += jsContentOrigin;
       jsContentProd += `\n ${pluginTsProd}`;
-      let uglifyed =  UglifyJS.minify(jsContentProd);
-      if (!uglifyed.error) {
-        jsContentProd = uglifyed.code;
-      }
-      else {
-        console.error(uglifyed.error.message);
+      if (this.options.minifyJS) {
+        let uglifyed =  UglifyJS.minify(jsContentProd);
+        if (!uglifyed.error) {
+          jsContentProd = uglifyed.code;
+        }
+        else {
+          console.error(uglifyed.error.message);
+        }
       }
       //we deliberately overwrite the dependencies property to make sure it will be undefined when no dependencies file was supplied
       // distPbiviz.dependencies = dependencies;
