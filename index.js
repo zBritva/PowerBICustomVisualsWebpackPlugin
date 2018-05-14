@@ -87,14 +87,6 @@ PowerBICustomVisualsWebpackPlugin.prototype.apply = function(compiler) {
 
     if (!cssContent) {
       // if css file wasn't specified, generate empty css file because PBI requres this file from dev server
-      // compilation.assets["visual.css"] = {
-      //   source: function() {
-      //     return "";
-      //   },
-      //   size: function() {
-      //     return 0;
-      //   }
-      // };
       // try to get styles from package
       if (this.options.cssStyles) {
         let style = fs.readFileSync(this.options.cssStyles, {encoding: encoding});
