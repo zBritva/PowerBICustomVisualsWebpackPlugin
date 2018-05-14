@@ -20,6 +20,6 @@
     "base64-img": "1.0.4",
     "jszip": "3.1.5",
     "lodash": "^4.17.5",
-    "uglify-js": "3.3.16"
+    "uglify-js": "git+https://github.com/mishoo/UglifyJS2.git#harmony"
   }
 }
