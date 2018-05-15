@@ -22,9 +22,10 @@ function PowerBICustomVisualsWebpackPlugin(options) {
     },
     author: "",
     apiVersion: "1.10.0",
-    stringResourcesPath: [
-      ""
-    ],
+    stringResourcesPath: {
+      "en-US": {
+      }
+    },
     capabilities: {},
     iconImage: !options.assets.icon ? 
       base64Img.base64Sync(path.join(__dirname, "templates", "icon.png")) : 
@@ -51,15 +52,13 @@ PowerBICustomVisualsWebpackPlugin.prototype.apply = function(compiler) {
 
     compiler.plugin("emit", (compilation, callback) => {
     // generate pbiviz.json for dev server
-    var stringResources = "";
-    if (this.options.stringResourcesPath && this.options.stringResourcesPath.length) {
-      this.options.stringResourcesPath.forEach(resource => {
-        stringResources += fs.existsSync(resource) ? fs.readFileSync(resource, encoding): "";
-      });
-    }
+    var stringResources = {};
+    if (this.options.stringResources && this.options.stringResources.length) {
+      this.options.stringResources.forEach(resourcePath => {
+        let resource = fs.existsSync(path.join(".", resourcePath)) ? JSON.parse(fs.readFileSync(resourcePath, encoding)) : "";
 
-    if (stringResources === "") {
-      stringResources = this.options.stringResources;
+        stringResources[resource.locale] = resource.values;
+      });
     }
 
     var capabilities = this.options.capabilities;
@@ -235,6 +234,7 @@ PowerBICustomVisualsWebpackPlugin.prototype.apply = function(compiler) {
       jsContentProd += externalJSOrigin;
       jsContentProd += jsContentOrigin;
       jsContentProd += `\n ${pluginTsProd}`;
+      fs.writeFileSync(path.join(resourcePath, 'visual.js'), jsContentProd);
       if (this.options.minifyJS) {
         let uglifyed =  UglifyJS.minify(jsContentProd);
         if (!uglifyed.error) {
@@ -244,11 +244,7 @@ PowerBICustomVisualsWebpackPlugin.prototype.apply = function(compiler) {
           console.error(uglifyed.error.message);
         }
       }
-      //we deliberately overwrite the dependencies property to make sure it will be undefined when no dependencies file was supplied
-      // distPbiviz.dependencies = dependencies;
-
-      //we deliberately overwrite the stringResources property to make sure it will be undefined when no stringResources file was supplied
-      // distPbiviz.stringResources = localization;
+      
       visualConfigProd.content = {
         js: jsContentProd,
         css: cssContent,
@@ -285,9 +281,5 @@ PowerBICustomVisualsWebpackPlugin.prototype.apply = function(compiler) {
     callback();
   });
 };
-
-PowerBICustomVisualsWebpackPlugin.prototype.createPackage = function(visualConfig) {
-
-}
 
 module.exports = PowerBICustomVisualsWebpackPlugin;
