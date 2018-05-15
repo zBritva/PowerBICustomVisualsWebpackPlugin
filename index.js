@@ -59,6 +59,15 @@ PowerBICustomVisualsWebpackPlugin.prototype.apply = function(compiler) {
 
         stringResources[resource.locale] = resource.values;
       });
+    } else {
+      let resourcesDir = path.join(".", "stringResources");
+      if (fs.existsSync(resourcesDir)) {
+        let resourcesFolders = fs.readdirSync(resourcesDir);
+        resourcesFolders.forEach( folder => {
+          let resourceFile = JSON.parse(fs.readFileSync(path.join(resourcesDir, folder, "resources.resjson"), encoding));
+          stringResources[folder] = resourceFile;
+        });
+      }
     }
 
     var capabilities = this.options.capabilities;
